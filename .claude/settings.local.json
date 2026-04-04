@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -)",
+      "Bash(curl -L --max-time 30 -o /tmp/NE1_50M_SR_W.zip \"https://naciscdn.org/naturalearth/50m/raster/NE1_50M_SR_W.zip\" -w \"\\\\nHTTP Status: %{http_code}\\\\nDownload size: %{size_download} bytes\\\\n\")",
+      "Read(//private/tmp/**)",
+      "Bash(unzip -l /tmp/NE1_50M_SR_W.zip)",
+      "Bash(sips --getProperty pixelWidth --getProperty pixelHeight /tmp/ne_raster_full.jpg)",
+      "Bash(sips -z 900 1800 /tmp/ne_raster_full.jpg --out /tmp/ne_raster.jpg)",
+      "Read(//tmp/**)",
+      "Bash(sips --getProperty pixelWidth --getProperty pixelHeight /tmp/ne_raster.jpg)",
+      "Bash(base64 -i /tmp/ne_raster.jpg -o /tmp/ne_raster_b64.txt)",
+      "Bash(python3)",
+      "Bash(python3 -c ':*)",
+      "Bash(curl -L -o /tmp/countries-110m.json \"https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json\")",
+      "Bash(python3 -c \"import json; d=json.load\\(open\\('/tmp/countries-110m.json'\\)\\); print\\(list\\(d.keys\\(\\)\\)\\); print\\(list\\(d['objects'].keys\\(\\)\\)\\)\")"
+    ]
+  }
+}
