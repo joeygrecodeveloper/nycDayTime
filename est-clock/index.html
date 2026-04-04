@@ -451,8 +451,11 @@
           const zenith = Math.acos(Math.max(-1, Math.min(1, cosZ))) * 180 / Math.PI;
 
           let darkness = 0;
-          if      (zenith >= 96)  darkness = 0.50;
-          else if (zenith >= 90)  darkness = 0.25;
+          if (zenith >= 100) {
+            darkness = 0.60;
+          } else if (zenith >= 90) {
+            darkness = Math.pow((zenith - 90) / 10, 0.5) * 0.60;
+          }
 
           const i = (y * W + x) * 4;
           const gray = 0.299 * px[i] + 0.587 * px[i+1] + 0.114 * px[i+2];
