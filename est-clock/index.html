@@ -136,6 +136,65 @@
       border-radius: 4px;
     }
 
+  
+    #debug-panel {
+      display: none;
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: rgba(20,20,20,0.92);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+      z-index: 9999;
+      font-family: Inter, sans-serif;
+      font-size: 0.78rem;
+      color: #ccc;
+      min-width: 220px;
+      backdrop-filter: blur(8px);
+    }
+    #debug-panel h4 {
+      margin: 0 0 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      color: #888;
+      text-transform: uppercase;
+    }
+    #debug-panel label { display: block; margin-bottom: 0.5rem; }
+    #debug-panel select, #debug-panel input {
+      width: 100%;
+      margin-top: 0.2rem;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 5px;
+      color: #eee;
+      padding: 0.3rem 0.4rem;
+      font-size: 0.78rem;
+    }
+    #debug-apply {
+      margin-top: 0.75rem;
+      width: 100%;
+      padding: 0.4rem;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 5px;
+      color: #eee;
+      cursor: pointer;
+      font-size: 0.78rem;
+    }
+    #debug-apply:hover { background: rgba(255,255,255,0.18); }
+    #debug-reset {
+      margin-top: 0.4rem;
+      width: 100%;
+      padding: 0.3rem;
+      background: transparent;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      font-size: 0.72rem;
+    }
+    #debug-reset:hover { color: #999; }
   </style>
 </head>
 <body>
@@ -154,8 +213,9 @@
         <div class="sun-label" id="sunset-time">--:-- --</div>
       </div>
     </div>
-    <div class="rain-row">
-<span class="rain-label" id="rain-time">--</span>
+    <div class="rain-row" id="rain-row" style="display:none">
+  <img class="rain-icon-img" id="rain-icon" src="" alt="" style="width:1.5rem;height:1.5rem;">
+  <span class="rain-label" id="rain-time"></span>
     </div>
   </div>
 
@@ -275,8 +335,52 @@
     const NWS_POINTS_URL = 'https://api.weather.gov/points/40.6501,-73.9496';
     let nwsHourlyUrl = null;
 
+    const WEATHER_PRIORITY = [
+      'thunderstorms','hail','freezing_rain','freezing_drizzle','sleet',
+      'ice_pellets','ice_crystals','snow','snow_showers','rain','rain_showers','drizzle'
+    ];
+
+    const ICON_MAP = {
+      thunderstorms:    { light:'thunderstorm',  moderate:'thunderstorm',  heavy:'thunderstorm' },
+      hail:             { light:'hail',           moderate:'hail',           heavy:'hail' },
+      freezing_rain:    { light:'freezingRain',   moderate:'freezingRain',   heavy:'freezingRain' },
+      freezing_drizzle: { light:'freezingRain',   moderate:'freezingRain',   heavy:'freezingRain' },
+      sleet:            { light:'freezingRain',   moderate:'freezingRain',   heavy:'freezingRain' },
+      ice_pellets:      { light:'freezingRain',   moderate:'freezingRain',   heavy:'freezingRain' },
+      ice_crystals:     { light:'lightSnow',      moderate:'lightSnow',      heavy:'lightSnow' },
+      snow:             { light:'lightSnow',      moderate:'moderateSnow',   heavy:'heavySnow' },
+      snow_showers:     { light:'heavySnow',      moderate:'heavySnow',      heavy:'heavySnow' },
+      rain:             { light:'lightRain',      moderate:'moderateRain',   heavy:'heavyRain' },
+      rain_showers:     { light:'heavyRain',      moderate:'heavyRain',      heavy:'heavyRain' },
+      drizzle:          { light:'lightRain',      moderate:'lightRain',      heavy:'lightRain' },
+    };
+
+    const ICON_SRCS = {
+      thunderstorm: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAABYlAAAWJQFJUiTwAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAOdEVYdFNvZnR3YXJlAEZpZ21hnrGWYwAAB2hJREFUeAG9WWlsVFUU/ma6DbUlDzqFUrZB2TQghQAxiNISE2OIQo2/CEJFE6MmFnBhSbRTN6gabX+ACUEpxkIaTIo/kMREO9WiBIstlRiNqFOgUNpCp+1Qukw7nnM7b5ilvfdOO+FLCm/eO/fes3znnrtYEAc4//Mbqfdggx9YAj8c9CrHYoHh98MIEXPTOzfJNFiA84ODcO2eZnFjnLBgjGCl70lDISmZy38YGxrIqLLxGBOzASGKb4vw8LhAhpSTIcWxGhKTAR+1+YvirXgkrFY438i0FOvKaxmw95rfQR1X0WMO7g7cQ0PI04mGVSVQ0urfkpCAesRB+d4uj64oO6y+5Lp/g0pQagB1UESzSnm8KFO6dilqD5bpivOYVUxbmdCoBgjlKWcRJ5yrLEfHZTfuW7UmpnZEJafMiBFzIBC6KsSAPp8f7vYBNHuG0O4dhLd3SLxjJPV14erO1bhNFCr4uQ0OeyJSEmOcAC0o2DnFciT6dQQ4YZnzurTpJkUbr/Tjr5aBoMKR8BzfC3xXgv4F6zDl9QrxbkFWElY4UpBuU6ZhsBuKxtLIxE6MlKLkqdZRnpWtc/cJ5WXwtV2C5+t9yF1pReP9q4Pv2WD+e3BGMh6ea4MGjMBMuDRM39AfAd47FB0Jrx+vu6VUnsHeL3olCZ5uwPbA6qjv3MdXZ7yiTw3kkI7O0BdBA5g60EjaG8Tvbxp6tAZk79svHsP6xxLQeCkdyY7FI8pxX9wn962BQl4NINIA4n2RqiUPdOrCbV1vofXjjcL7Tc1D5P1H4tW3MSEV28wfwgD2PvG+QNaKOa/reYa35iiyBy5gS34CTnw/hNQV65RtzEiMNhmEIBgFYQB5P1fVghNWV3kGc/+LD5LFc83ZQSTPXqzVjsfgsRQIRmGYQn4UqjrVSVhGb08P2o+9g02rm8XM426m+nArC122DPgGBrT64LFUzqLVq6iIVkEfxTpHwyNUMYdws/U6Wn4/I+jzNnGf4fqVFJk2H97OTlz59yLJtAhZHSNk4D0I08iqog/z8c+WAaXyLZeb0NVxE6g+hMInqdpOH66RNWdJ2YWPBmW7OjqErMoIWWE0wbtAK/Uj9T4vD1TwtLehv7eXHq7B0fotCjffqY/Mf45AKFjW094q7XN4aeKTyrDuVqpuS2RCVz3yuZl5LTzPOFUqpk3T+4L/N9KArHlR7TgSnC8yNHuUdcFh9fvllbfdKw81e1+g4SQcXT+KadOEMZFGyPACv1SO2LbH2w0ZbnjlEaBEXsKzkEMmpJoN+vt6hx+MaeI/9roJI92CH46kwDh3CGj5O6qtyoDuXmU9MJRLQVUi9fcFZijHMrjnP4+te8JnD6bTJ9tI5uibNMeGK6yaVjUKmqG9ltVC3gtwteWgeH+4YgVEq8KniGpV7yHesBKPpBtV1cYjMSkp/EX+WyiuyITrbDj1Pt2dhNz0n8LyITklBeMZm8FJLDVAteFITUsPf8G5QEYwlULzgcFLC0djKSXKb+J3sk2+D0i3KQ1ws3YNMgl7WowGMEbJh0gYGZnS7xlpCdLvfFTJEWiSCWUb8k5sqamYOGly9Ic5y+DpCn9VvN8nDGMDuU0U/SIw3UiUfqdCdp4LmTQCDnuSkouG3R7N5/qTYRW57EsfjlRnikRn6hh2ufeHx5YbQM5vsJITTsiEWHnegMtgtSYga9bsO5Hg6ZIMWLNymH6cC8WfE9+3HhAyWTNngz0nA4+pkcQu6/ZJFg9xySWT4o23CmzE5ClTMePeubA11Ymp01xSrN3SB9/aHcha/JCQUSnP4BMLGUjnBj6hED3RqXCNTJhnIh0jGILX5P31a4fDzzWhfd5G2PN3iHzRAY+lmv1IZ3HEJ6SIkqWqerBc8wyHN/JZnadpI2+lreQg3q/MhvHMLuiCx1iu8H4ALv5HaMQ0Mi0aDczH9TmpSiN4M2PuxHbsHYD95c+QmDkLOuC+eQwV9/kuwTzgCmqjEwUe4IlFE6RGeF0VeHVzkpgyPat2jXgWNNa+TfBFiPkclNaJAoOLy2iR6P2jFosyrohNTEWtPnVMz6sKVwBhtzhRsfrwur/er3EXMNLRYvuBl/Da4uN493AqsktqtajDCcuc1zzsde+capkT+iKqUgwOIV/ncJcH5DNNVoAN4X1zT91JFNcw7/dJlTdri85sY4LpTQzJi3wfZQCHh04qttNUfRgaYAXyFk5AyrlKOj7pxLTHN2H6umfFRshcz7PCLGcnimTTCl6nukfC58Nze7Kjr5xG7YWMcJIRyuNGEwefzsPNS268WFWNSTMdiDOKiTrOkT6MGj+KhJMWS1q3hbc7PfjntAuby6vuqvIMZRz5tob4d1iVE3yBZ5sYv9vXAOe3kyPLpXLQQOCatRoadwdxQgNFP1/nmjWmTIo1L2JFwOtlTF/tNogRgWg46XEL4gRTcTqhKXXOsWhfJou2GCMCNzq5CVYU+sd4Cc7LeF4Jj0XxYB+IA0xjSKEcPqoMnPY5cEdRDx8eWJjbtIXlXWDPLZwYq9Kh+B88QkyHxWbIfgAAAABJRU5ErkJggg==',
+      hail: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAABYlAAAWJQFJUiTwAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAOdEVYdFNvZnR3YXJlAEZpZ21hnrGWYwAAA0RJREFUeAHVms9PE0EUx78zNXGJHMrNI/wFYAwmYlX8D+AmJ28IJzAQAyeWxJhFjKmJh+LF+hfI0RslaZADhuUvsB699aCmidDne1O2hf7ebSk7n6Rpd3faznffm5k3761CH1h23WTpT2mGlBoHYRSgCSKVVKBktZFCga8VoJWviE6QQC7jeQX0iEJEpNN/f5eW+AemUXlF+HcWA3rfi5jQAoKO81eXL93hXlHIqgQ2wwoJJWB+dW2j7x2vgwD341tvs9v2XQlYWFsbpTP1BUQTGAQ8XtgaT7qxhu7UYHFl/Vn5VB0PrPMCTwTE/7n4cn2mU9NEu4sL7DKkkGYzORg8DhGe3p1K4ftBfr9Vo5YCTOfZH3HNyCzXTkRTAWI6Vp9BTBAR9+4/LBx9y580uXYZGbDi81c500RDFdUNulM/sBsGMZ1hL36dFyhpZsI6LrnQgpnn0XHkXyO3eTwoHg+54ETVhcxcf4ofiD2qODR8cyztukU5qroQu84GrIAklFkOjowF7Ln7ATUrVCxwFjGavDZqVjACOHZfgmWw6zw27/a5T42hYWdE2+c+NWQXqKmMwUWZfYZjtQmtFMZhKxx2aw6XR2ErfPN1JYtgKZz56LgjizdkuwBeyIiXZVgMz0JkrwDOXrALKR+2QiKgTD9hKwonWmlYawEO6Hxd+ufswlY4KayzabfISnKwDE7l+5KhCNaBfViGlrQ8zjc0pVMnbd16kKh4jREgbhQosgGOoLNBgqsaSlhlBS6E1D6e4x/mSpNTqSEg3js03sRs7rzxqjNnQ270+er6sRTpEEc4dNjZ9sYunmqIRjmBOhtHV5I+SdWm/nxDev0ony9OPkj9QsxypAmt5jJb3mHD+WaNjw7yPo8Hca9pxADj99te03pFywoNi8jFQYR0nquWbqvrHauU8ytcaFP4NOiagfi8LtOLzDsv265diDIr9gaWAJAKfoJmuymzhip0cwHEZZNeWRre3HWOCDJtXKaeBEJgxsWj1GdVxggf9m2tqHQcW5zrnPvw+tXXMN+N/LCHuJXkVSuZ7WgL33kYv+8MO+mg4hLhN3onEAOxCmHcZPsujBezCJnkgXk6RbawvnPL2Y3a6Yv8Bw0XRXGGQO4CAAAAAElFTkSuQmCC',
+      freezingRain: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAABYlAAAWJQFJUiTwAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAOdEVYdFNvZnR3YXJlAEZpZ21hnrGWYwAABKNJREFUeAHNmeFOG0cQgGfXDsGRbOy0ggpUuCikrVRFgR/8qNSoRMoDBLUVqvIjUV8g6RPEvEF4gZb+qCrUVPAGIUqk/uAHjqJKKBDlHIkooAQbO4oTwu1lZs9njA27e8f5zCcd2Oe5nZnd2b2dWQYRYC2UsvAxcQ1cdgnAtfAaAwZZcPHaxwbGbJQpAHMfg+Ms2b/kbDgmDEIijd5L3gLXnZRXONAZNnscZwI7sG+4uN3Sw8eDsTl0ZCaoI4EcsP6p3onc8FY4z9s/p2dMxY0csP4uWdjwAn4cg3iwQYgrJqPBdQLWvbc3IMFXID7jpVrssBVrvnRNJ6h0QIaM48x1NGSOBnXyBWmDgiNDSD4oRB5OAop5cagD1nwFh85dgACcct5Df2kNcpUiZGpbkNrdgeTee/nbXrIXaj19UDnTD6X0MGzlvsLXRi8Eg920pzN/tt1tvSEnLMW8YdiQoSOvlmHozZOGwSZsfH4Rng1dlo4ZUsaIGG+d2Mk2Mc7vmxhPPX5+4xGMbC5DGIZeP5FXcWACVoevmjySra+E4803D4yAadxTr0+s/gWpDzsQBbXTfbD8zXXT0Zixp/vy/peGA/W1/rnu6XRtE8bX/o3MeB9yojD6k5wnGsrQI87ZU7kyfdlfRhOJO7onqec7YbxsG9scW78ndWjIwi6/7X+RI2DS+xTz3/3/e0eMb4ZG4r9vf9WtUo1R8EYgkZgEDTRhO208QTpIl4bGKHgOuO4tZaO0VIZcbcJAurShxNgP9I/L8NHsc85vPIS4oXeLEsxBaGvPdeGTxNin9TpuSCfNOyWYBXIQrrL3B0pPoRsk5dZEoxtt58Apjz2aXPUFdIuzFa1ui2MsWSqJzLtN6BZp3BQqYXCJViFLJZP6UIFuYbBsZ7UZWdIx32FGjYFuvQMnHY5xVFYJ7AVOPKLDRDdOYrUDtdMZ6Ba0L9Jg4whgqU9BNTUA3aKq21pjqZJeZEWVzHZmGLrFdnpELSDcx/QiU47AJibg3ZoHW7kLagFXFDhuOBZVMmQ8JeBx8xJ1GlQulrhMzRhbUklR4h0364OXdSIFqlD4+cADlSStBsUv4nOCOky7AgkxS/88B3rEXd37YH3we5Nl7diQjmeoy4Al+iMdkGHkwqxKmubC8tfXO+qELK+gjo9JTezjWYJf4NrfShiMAilYGf2xI04EahsPQvyPDQdMRoGonhmIfCT8nqe2tQhx4BSnvTY6v2N0FkA7xdGXj/S5qwaasBTz2rDxsLEqd+6AHW0iQkyZFHdpTqx+eRWK/RPoyEMYDJA3U7V647OLZquND4W3I6603z4ErFTcxELXHxCAU1iZ7i+vwdlqEdKYxaV2Ky3l9YzcV21nRmAre8G0x5sQU/Z0btHIgboTeXRCW26MBS/u84f9pDzkOxFOKIwntKeU8qCNYTjFfU7mxfxvaPycWsyAevH3PmgKABFSoMXE5Jg12EF3p0PK6/VZVci0PxKQ+mjk8eMNiIq64dALd/2DC/NHQ1IvCk+iM1TZDncITtt4x3kQxvBGExABDWcYH5OlSq/aZzVpKXvFA8z+XExhMZNCoxfDGt3MJ5YY80WauvRTAAAAAElFTkSuQmCC',
+      lightSnow: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAABYlAAAWJQFJUiTwAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAOdEVYdFNvZnR3YXJlAEZpZ21hnrGWYwAAAfdJREFUeAHVmo1xgkAQhR+pwHQAFagVxHRgKtBUkKQCTQlWEEtIB5oKxArACqSDza53x5yGyYxy4O03szIw/uy7t3h/JAgAEQ34MOUYcqQcI46BDUdpI+fYc2yTJClxLyRpjgXHhm5nxzHnSNEXXuJHCstX50I6SvySBUIjLUPG7r4oKJQb/EUz6r7Vm5DfnKINZErm3txWUhRH8o7rRPAHphQfs6Zck4bkUz7scN4JxUDFMb7s/JoEFDC9aYzkLGDsX3jwT8jUWop4GXGOS/9C7YAtnQLxI6WUsRNyPHMgfA/YDXJvvruTkwOKWt9Ru+AcmEAXtQtOwBv08SQvicLy8XkUBybQy1QEjKCXkQgYQi+pCEihl6HcxAS9VNoFnA/mNCICKihGu4BSBOTQy0nAAXrZa3cgl79RGZoeoZPswU7NttCHTPBL1w/8QB8reXFTSikjmRPEthb0H1ntgC2jFfSwdgtc/rKKJhcyJ6AeCyly4dNfXmxaWpR10VhnaSUnn/kXmkajL4hzfCQ5PV9e/CPA2vOB+Hi9altWFlEpHpa4BYpDxBJtILNbc69NvjlCQGabtaD+kC3dFKGh7ktKWn2JLiHjxprCckqczGigH6wQeVCjzQ7+pm3iCQJApl4nMD24e+Qm9d5S2ZDZ38Eev902URt+AexQM+vyuFQUAAAAAElFTkSuQmCC',
+      moderateSnow: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAABYlAAAWJQFJUiTwAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAOdEVYdFNvZnR3YXJlAEZpZ21hnrGWYwAAA6dJREFUeAHNmkFPE0EUx1+JRrAF1sSgAYNbjFx6aIkejB6sF8/1E9hvoN+A8g3kE4CfQK6eqAcTDxraxF4koYsRE4kJixbFSDK+/+5OXQjdmXZnt/0l0w1l2Hn/eW9n5r0lQwYQQlh8qXArcrO5lbhZQZM4QWtwa3KrZzIZh4YFjOa2zG1TDM4Wtyo3m9IiZPiBMMta4kISMvwsy2QazIzw3Z0WbWHKG3yjpyL5WT8PjFmhOAg/ZIbNYCElRsN4SU8RmR7Gw3WvqA/+npzQ3v532ncP6fBHhzrHx9534OKFC5QbH6fpqRzNWNM0N3PV+65PqrxvvCSVAOE/PFt0ehPqyREbuv35C7W/fusarIM9e50KCzcpy8I0cbktnd38zhPQJn83jQTGtnZ26RMbH4fb8zdoafGWbvcGC1gKf3FKQBBrNVKAWd9836RffDUBvFC+W9T1xgqLqMkfugKC0Gmr/vqg06G3jZYx4yUw/kGxQNZkTtUVoZRnEbjSWOgXyuUKM5+E8d17N1veVQGezefyB88DOrOPmH/97kMixoeBJx7fu6NapbpekB4okwI8sEkbD+CBjzyWgq4XpIBnqpvGXW36AcuyRig9xMdYED6lqJ6tHYfSZls9YWW23YIHylG9EPsOb1Jpo7kxViAgcvZxPBgG8miioAQBxage+65LwwLnKgU2BNhRPdyfRzQsXD4UKigqBRz9Tn7p7Dm2xqY2purRzwnTNBpjqwWMOhAQ+ZQOkHgYQ2dspYDshHbCYRyN47UDAY2oHtZkloaFNaU8WnsCIk9OM5ZWZpkIyJ8VNJUeGDABNwLGVtCAgI2oHjA+P3uN0gZJv8bE1ceC1Kwe1QuJd9qgYqEACb4j94E3UT2xGizOz1FaYCyNFWgVH1LAC1Isp4UFmy6PJ7+kwnCMpUEdH56AIIxWo3ojHh9x6SNJEbK8ohH767LAFS6rYL1EYh+5biZZVrlfKtCVnHLtB3kpoHsW0vECwACmPSFnXtP4lXB58bzSIuqiJdVd/NKiw8n+HsUBDyxiXnOvcdj4fPgLI8VdCOknb5Z7C5Zn48VdwCKqfFmjPvhfXnc5i+twIvTnVHk9O3HJKxviaDLg7v6Ejd/Q7s0iamJ0qNEgiNEQUaM48A0qYngv+apkAuG/Zm2L9MArXZtMI5IPKcx6jZJE+N5YF2bxDBf+aSAdAiH4R404b/A34xqeIQMIP17L5O/g8l9u7FAXN2jI/naD64Z8TRSHf26faMhBuwpkAAAAAElFTkSuQmCC',
+      heavySnow: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAABYlAAAWJQFJUiTwAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAOdEVYdFNvZnR3YXJlAEZpZ21hnrGWYwAABIJJREFUeAHNmuFuG0UQx8dVKmxiu25FXdSWxk5NJBRVdgQqCJAIX/jCl/AE5A3gDeq+AX2ClicgX/jApwQJJIiAOhJBqBTsFIpUt2ovsdOkaqTt/O9u3UuUzKzPd0l+0t7Jd3O3M7uzu7NzzlACGGNKfJrjUudS4dLgUgqLpROWFpcVLkuZTKZDRwWU5nKNy6KJz20u81wqdFhEFH9ikuVm6oakpPherlHSoGVM0N2HRdsk1Rv8os9N+q2+H6hzjkbBBC5z1MRzKXM8lLccaETmAOXRdd/QEDzf2aH73UfU9dZpfaNP/e1t/xo4OTZG+WyWThXzVC6dogvl1/xrQzLP68bXpBlggsFzm3YvQgeyyYr+de8/av//YKCwC5Xzr9P05ASNs2GOeFxm9i5++xnQpmA1FYGyq/+s0R1WfhTevHSRZqYuu4q32ICZ6IVdBoS+1iQFtPriLyv0lM9JgF6Yfafu2hvX2Yim/TEwIHSdtvb0k36ffmytJqa8Bcp/UJ+mUiGvicKVqmwEznQickOdrtDyaSg/ePfKqn9WwNj80v7we8Cl9eHz3/30ayrKR0FPfPLe29osNegF2wOzpIABm7byAD3wO9elMOgFa+YX2ktdZxvv8WN62H3ApUvbW1v+tXyhQIVikaqXa5TN5dR3YFqeunRBG9Qf4ZBxcZ/lP/6kDs/zEjs7z6l99y79uya33hsTE1St1Whs7KQoBwMaUzVSOA0XmpUk4Psuyv+2vKwqDyADWTwj4bgwzsGAhiSB8EADLd/v9cgVyOIZCRuaKDRgQF2S6HqedNv3c5eW3wuewXiR614nhQoMqEgSXm9Tuk3tv+WWlOh2Zdf0OChUqKsGbG7JU2dvY4Pi8ohnKrFuh0XthCahDaRhfH8vdpqNWze5GHDcgQHiKNU2Hi4L00EUeIEbpW6gGjCek0Pcs+UyxSVfKIr3HcLrDgxoSRKlwrh0mw04R3HBiizWXVRDa98AcRIvl+SdZenMGT88GJaL/Izmftg/K6yoPeCyAUdLav4cBbKTNTXO8etWaMGABUkCylfPy26CwGzm6lWnnkDLQ1YL5rDpdxjES3ZDs0hCUIcF5dsffiYXMLcHsdEG9cI1IpvN0dlzZX+8wOVc+PTDd7VB7G/wrYnfk2AAXoTw9s69+6QBv37ryhUaBYe9ALiBg13IviJlOp2erNCr7jmc2EBx1OXAEg6+AeEO/4YkDX/8mFMfaRph0ysOvn/LJriiaRXMl9iZifNmmmmV9xvTdDqvzv2gag0YxEIuvQBQQdI9YVveUfnr0fTifqlF5EUb2luC1GLHaWBLYMDC5x2TvR1Wvhq9kEhyF4Zo++Yodm1BXjTx5C5gI+b5dJOG4GV63eNdXJ83Qs92pdfHc6/4aUOEJjHT65+x8gvO0mxE0xwfmhQHczyMaNIo8AvmzNF95JunJDDBZ9a2OTzwSbdCSWPSdym0epPSxAS9ccski6+4CaKBwyE0BH/UGOUL/uKoimcoAUzgr7MUrOD2LzeViIgXFuz+1sLzgv1MNAovAAw4y+pFpvz4AAAAAElFTkSuQmCC',
+      lightRain: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAABYlAAAWJQFJUiTwAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAOdEVYdFNvZnR3YXJlAEZpZ21hnrGWYwAAAtpJREFUeAHVmU1y00AQhd+MK1UhYaEsgIKVfAKbE2BukJwgcAInCyoFG8srKrCJT4A5gXODmBNYOUHEigpstCFAVeyhW5EU/0WWZEVRf1WJ5MlY6Z5+o5npVigA58JYW9vYNUADBjY1NZWCZQysqW4etXnUx1XA+XiM4fvnysOaKOSEjd5+jDYZ2eIf5MMlp3rrOJPZgSnDD+ZGeC3IkT450s3qSCYHPv8ynaINn0drOO+eqG7a/qkc+PjD2PTgAd02UQ7eZILXaaKhV3U4/mn2azWMUJ7xDA/Y6PjS7K7qmOgAPaBDb5X+fUomAf6fA5ZtUqc7JRQYT3MWFSBpXix1IAzdAFVC4c3RU/V1sXkOnrCs+QeSTRI+TeyX8xN7YQ5QuM4qaDxjhW/CGWYcCHVvo7o0yUZnuiGWUPiuv0D18f9coe7Ulc8f4giQ7juQgfVoCwfRhyACgkY/Io5CEAEa/RZkEUfhRkIGbQiDdq+vgqtA+cSQjHa0QPnE8ClQ0+pW5i6zUNh2TfJpQC62NqbSK28iNJEb/BayIRdr5Yms4oh3AJp05EMwPIklO+CxhFwIhVOVHIHvEAotZOe8kImNAA2+qzc2cAq5DPXhjvJJS0MIg2x2OUMRrAOUFf4GYZDNPb4GDmxu4kTgejDkX4EDLKPIIwlwLSFKcMVbCUlR4EJIdB87ICgKM1Wchdzop0szMqjsKc07eqbq0w0Lu9HxBHtVlBLbxFWb+fYFBzg8JKVDVIzra7xdVnJaeh6gjn3yNnWhrQS6H16opTuGxCIf5Ywc2is9dM60S7p37vrjyiolV2tIf1/Krhmw5lnKrIbEfkhBmL07Q3kJAJckvJemzJqp0H3fkgpHvUeGO6m/g4yE0XDodh8FERn+7y9OosJF6u8iJ+wIXVo1jXbehY+38bwTzmN4/AwUQOQMGdTkVGWY7bNxa6jPyQPF2qYjLJ8Cr37jNK/R0/wH3RsZ2q6eiYQAAAAASUVORK5CYII=',
+      moderateRain: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAABYlAAAWJQFJUiTwAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAOdEVYdFNvZnR3YXJlAEZpZ21hnrGWYwAABFlJREFUeAHNWU1PE1EUvTOlUqAkQ8QvdDEkJm6MlARXLoSlK2HhGv4BsDBEN5SVQTfwC8DEnQvYuaTuXJBQjAtcURNRUUiaUL6EdrxnmKmlpe+9mc5MOUnp9HHnvXPfPe/rPo0CQHrTMto7aNgi6iOLTC5KaRoZlkVGhVmOy3Jsk9WI1otFyry4peWoQWjkEyDdkaRxJjmID/lDlp2ab8QZzw5UEJ+o6uGGwI4ssiMzXh3x5MCbP9Z00MSroeuUfn5Nm1G1V3Lg1U/L5IqX+DFF0SBXKtGQSjR0mcHsb2s0FqM1io48gA5bm922hmWGQge4gmmeVRbDlIwAaHMJshUZ1ZWQTZ7HLF0CiMbFhQ44oVsiDzg+tSi3c0Jb+RLtFIpUOCrZZUBri0bJhE7dSZ1uGy1kdrfYZZ6g0djUde1tbXEVMGCheVXZ7DHRz9//0tdfJ2XCKrh3M04PzVbqTEiHoYs8D+z+6oHdUm3F4VpRIQ+yq7ljm7wfwGF8Hty5Qo/uJlReMZyZsL+y8Jz7ju5NSUV2r79f3fdNvhKo492ngl2nAlLMMV1ZUJaQM9dvymrYZX1/+HKo2qAyIKUn99voajImM80fHlBvulfL40c5Aqz7admbIB0GeY91G23tNOH+sCOg0vvQPGQTBvlKIBLPBjpks1Q5CnYEuPcHSQIM2LDJA2gDbUlQjsKZhCwal1UaxIBVBdqSdRbvXh/b3yryWdk4pA2e8qKEyvTKMurSZfKB9qMmD6gsjDgF6ry6CXeZ2B40A2dbk1OhDbjrLJ8+kdGPfJGahS1526ZuWeKVd6cQ/sxTD7sFcQR4IPdhFjJFRlFMnfXblm4ODelW0MsOM2gotG0o72UvK3TWUV5k4PngESBU2sYgFjrg4cARODoTUgdyYJcVWeAY2CzIttZIVSIC30RGPYZ0fx4acH4WgReydSxkwgiY3fGmjQMc/kXgzs/q8Tgti4xAHgfwqIE2FTouo092aXnWUkZkhZ1h1EDGQgTmnEWGwh6hnBX+KDLGTBSlE2hLNvsx53l821aJBM3J1oMBbzkc30AbA5Led5DBH5sRZOR6VA/Q49NUe6hOoG60IdM+7hLcBFeZjUoU3NRHGE54qRsXIe5z2VolCgAWl6Aj4fa8Qk4IOHeLUxOr19vWmqVwF9BoatEFBiw0r7jW5KZuaL2VBTUrRbFEIyrJXTSIQzcIwBEv52Z3bVGZbVxA3qyQoZryi4w5UzHGK/QCeYCbXscRFKe4var0eqedXo/x1kT3tboz+ZGXPdqykgOOE2l2QppujAgzLJ30Rf8QdsMlcaIueUAaR9zWsP4Wor4nczQ/yTPOotCOFOBk71ZI4e4gIGR5qzyics3qaSSFLSmn1+eZeFr5HfIIJxppfhylgOASPz6iOffiQvld8gk4wl+DMZ3GLZ+X4NjGYyfsh3i5DgoArjNMKIVUpZPtM+k/0TySBxq0zUdYnAIP9mnZL+lK/AOANeuzFcL1PAAAAABJRU5ErkJggg==',
+      heavyRain: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAABYlAAAWJQFJUiTwAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAOdEVYdFNvZnR3YXJlAEZpZ21hnrGWYwAABSNJREFUeAHNWb9TG0cUfnfihyyEc9gCY+LEIuOZNJkgz5AqRXCZKqZIbf8H2EXGkzSIKuOkMX+ByUy6FNClhHQpPIOcSeFUlidxgm05aIwsBEI6v+98J4sD7Xt3khi+GZA43u1+b9+3b3ffWtQD5B+7TmqErrtEM+RSlh/lLIsc1yWnzazIz4psU7CIHjYatPHtRatIXcKimADpkTQtMMk5/FA8FNip5W6ciexAG/FboRHuCuzICjuyFNWRSA78+MJd7DXxMGyb8t+MW0tae5UD3//nZrnhVf6ao5NBsdmka5po2JLB3efujUSCNunkyAMYsM27z9zrkqHRAW5gkbPKSj8lYwD6XIVsTUYdJeSR5zlLpwCmeXGsA37oVikC9g5cKpbq9LTcpFKlQZVa03sGDA9YlE7alEnb9L4zQNnMgPcsEiy6eWfC+uno4xAwYaF5rWx2mOgf/+zTX1v1FmENPp4cpM+ywzSaFKdhgDJP7KvhiT0QtuJwrWvIg+yD4p5HPg7gMH4+vTREn19Jal5x/Ex4tf3hIfd93WeFhrxR/+XB69jk24E2fv694rWpQI455tsftCTk5/rHUgsvWd+//rmr7VANSOnLT87Q+XRCMi3vVmk6P22V8UcrAqz7RelNkO4H+YhtO2dSdCv4w4uAZvShecimH+TbgUh8PTsiZalWFLwI8OjPkQBM2H6TB9AH+hLQisLbLOTSgtSodsLWqlWqVna8n4N63Xs2lEzS0PAwOefHaWBwUGwDfSE7mVIs716/8D418ll/tEuPtuomE2pyki6XXtCr7f+NdmfHxsjJTHC6Nud/TXplGY3ZknygfQ35rb+fiOSBV9vbni3eMUGzMOIUaHM7xl0mtgcSMPL7tRppAdty6bnR5u3W5MBoA+6I5IzJ6N9yw/RvT+eakQ8DkcB8MeGp0Ddh2+265pW3VDGHGqMfF5joJrysmCPAE3kGMylrMpJS5/6eXjphSA7s1MTNoSNuBaWJtL8n5uyOCNJs3L5J48Bph806KpsMpIOHZmHqBCxu3fQNYBIbHZAOHKn0KMUFVmhz36IDRbArmCxwDDShGwewtTBB2lqjVIkIPDEZTTnmRpKpFG8PzlFU4B1Jfjg/m8AL2UMsZMYIZDODohadTEbUczsgHSczLtrh8G8CD37B5kFYMxmBPA7gJth2giY/vKyKBGwmP7gsbubQp2ISb9i3x6wya2nDZIWdoQQ4cW7iAl366Aqlz753KCKQSkAcNhJ5ABULE5hzARUKL0ZcFf6N25zrZIxMBCc0ZwKQzVycom4gnQUA5ryMT8+KJXlPWg9mo9VwYgN9zGZV82kDvzxGkFHgUSdAj1/lUn11Am2jD0n7uEsIClwtNpooBKWPfjgRpW1chATfW9aaKABYXHodiWDkFTUh4NAtzpFY/fDM3XQVdwHdlhYDYMJC88pib/HOBWu6/cGRlaLRpHlNcRcd4tANAnBEOjeH30We12SbAJA3K+TakefHGXOl4ian1fsUAUF5HUdQnOJ2QuX1Ua+8nuCtia1a3cNg8vPfTVlrKgd8J/LshFhuPCEssXTyx/3DOAynxImO5AExjritYf3dP+l7Ml/ztznjrBjtSAG/erdOiruDHqHAW+V5zTVrpJnUb0n5o77MxPPqdygi/Gjk+esN6hEC4lyhuRdcXKjfpZiAI/wxl7BpwY15CY5tPHbCcYi32qAeIHCGCeVQqvSrfVl6R7SM4oEFbfMRFqfA6mtai0u6HW8AlVE/StNhxrYAAAAASUVORK5CYII=',
+    };
+
+    function resolveIcon(weatherArray) {
+      if (!weatherArray?.length) return 'lightRain';
+      const best = weatherArray
+        .filter(w => w.weather !== 'none' && WEATHER_PRIORITY.includes(w.weather))
+        .sort((a, b) => WEATHER_PRIORITY.indexOf(a.weather) - WEATHER_PRIORITY.indexOf(b.weather))[0];
+      if (!best) return 'lightRain';
+      const intensity = best.intensity ?? 'light';
+      return ICON_MAP[best.weather]?.[intensity] ?? 'lightRain';
+    }
+
     async function updateRain() {
-      const el = document.getElementById('rain-time');
+      const row = document.getElementById('rain-row');
+      const el  = document.getElementById('rain-time');
+      const ico = document.getElementById('rain-icon');
       try {
         if (!nwsHourlyUrl) {
           const r = await fetch(NWS_POINTS_URL);
@@ -288,26 +392,25 @@
         const periods = d.properties.periods;
         const now = new Date();
         const rainPeriod = periods.find(p => (p.probabilityOfPrecipitation?.value ?? 0) >= 30);
-        if (!rainPeriod) {
-          el.textContent = 'no rain in the next week';
-          return;
-        }
+        if (!rainPeriod) { row.style.display = 'none'; return; }
         const t = new Date(rainPeriod.startTime);
         const hoursAway = (t - now) / 3600000;
+        if (hoursAway > 168) { row.style.display = 'none'; return; }
+
+        const iconName = resolveIcon(rainPeriod.weather);
+        ico.src = ICON_SRCS[iconName] ?? '';
+
         const timeStr = formatSunTime(t);
-        if (hoursAway > 168) {
-          el.textContent = 'no rain in the next week';
-        } else if (hoursAway >= 48) {
+        if (hoursAway >= 48) {
           const day = t.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long' }).toLowerCase();
-          el.textContent = `🌧️ ${day} @ ${timeStr}`;
+          el.textContent = `${day} @ ${timeStr}`;
         } else if (hoursAway >= 23) {
-          el.textContent = `🌧️ tomorrow @ ${timeStr}`;
+          el.textContent = `tomorrow @ ${timeStr}`;
         } else {
-          el.textContent = `🌧️ ${timeStr}`;
+          el.textContent = timeStr;
         }
-      } catch (e) {
-        el.textContent = '--';
-      }
+        row.style.display = 'flex';
+      } catch (e) { row.style.display = 'none'; }
     }
 
     updateRain();
@@ -547,6 +650,102 @@
     // Update every 60 seconds
     drawMap(new Date());
     setInterval(() => drawMap(new Date()), 60000);
+  
+    // ── Debug panel ───────────────────────────────────────────────────────────────────────────
+    document.addEventListener('keydown', e => {
+      if (e.shiftKey && e.key === 'D') {
+        const p = document.getElementById('debug-panel');
+        p.style.display = p.style.display === 'block' ? 'none' : 'block';
+      }
+    });
+
+    function applyDebugWeather() {
+      const weatherType = document.getElementById('dbg-type').value;
+      const intensity   = document.getElementById('dbg-intensity').value;
+      const pop         = parseInt(document.getElementById('dbg-pop').value, 10);
+      const hoursAway   = parseFloat(document.getElementById('dbg-hours').value);
+
+      const row = document.getElementById('rain-row');
+      const el  = document.getElementById('rain-time');
+      const ico = document.getElementById('rain-icon');
+
+      if (pop < 30 || weatherType === 'none' || hoursAway > 168) {
+        row.style.display = 'none';
+        return;
+      }
+
+      const fakeWeather = [{ weather: weatherType, intensity }];
+      const iconName = resolveIcon(fakeWeather);
+      ico.src = ICON_SRCS[iconName] ?? '';
+
+      const t = new Date(Date.now() + hoursAway * 3600000);
+      const timeStr = formatSunTime(t);
+      if (hoursAway >= 48) {
+        const day = t.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long' }).toLowerCase();
+        el.textContent = `${day} @ ${timeStr}`;
+      } else if (hoursAway >= 23) {
+        el.textContent = `tomorrow @ ${timeStr}`;
+      } else {
+        el.textContent = timeStr;
+      }
+      row.style.display = 'flex';
+    }
+
+    document.addEventListener('click', e => {
+      if (e.target.id === 'debug-apply') applyDebugWeather();
+      if (e.target.id === 'debug-reset') updateRain();
+    });
+
   </script>
+  <div id="debug-panel">
+    <h4>Weather Debug</h4>
+    <label>Weather type
+      <select id="dbg-type">
+        <option value="none">— none (hide widget) —</option>
+        <option value="thunderstorms">thunderstorms</option>
+        <option value="hail">hail</option>
+        <option value="freezing_rain">freezing_rain</option>
+        <option value="freezing_drizzle">freezing_drizzle</option>
+        <option value="sleet">sleet</option>
+        <option value="ice_pellets">ice_pellets</option>
+        <option value="ice_crystals">ice_crystals</option>
+        <option value="snow">snow</option>
+        <option value="snow_showers">snow_showers</option>
+        <option value="rain" selected>rain</option>
+        <option value="rain_showers">rain_showers</option>
+        <option value="drizzle">drizzle</option>
+      </select>
+    </label>
+    <label>Intensity
+      <select id="dbg-intensity">
+        <option value="light" selected>light</option>
+        <option value="moderate">moderate</option>
+        <option value="heavy">heavy</option>
+      </select>
+    </label>
+    <label>Probability of precipitation (%)
+      <select id="dbg-pop">
+        <option value="0">0% — hide</option>
+        <option value="20">20% — hide</option>
+        <option value="30" selected>30% — show</option>
+        <option value="50">50%</option>
+        <option value="80">80%</option>
+        <option value="100">100%</option>
+      </select>
+    </label>
+    <label>Hours away
+      <select id="dbg-hours">
+        <option value="1">1h — today</option>
+        <option value="12" selected>12h — today</option>
+        <option value="23">23h — today/tomorrow boundary</option>
+        <option value="36">36h — tomorrow</option>
+        <option value="48">48h — tomorrow/day boundary</option>
+        <option value="72">72h — day of week</option>
+        <option value="169">169h — beyond 7d (hide)</option>
+      </select>
+    </label>
+    <button id="debug-apply">Apply</button>
+    <button id="debug-reset">Reset to live data</button>
+  </div>
 </body>
 </html>
