@@ -331,6 +331,56 @@
     updateSunTimes();
     setInterval(() => { updateClock(); updateSunTimes(); }, 60000);
 
+    // ── Weather text helpers ─────────────────────────────────────────────────────
+    function formatWeatherTime(t) {
+      const s = t.toLocaleTimeString('en-US', {
+        timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true
+      });
+      // "3:00 PM" → "3 pm",  "9:30 PM" → "9:30 pm"
+      return s.replace(/:00(?=\s)/, '').toLowerCase();
+    }
+
+    function getTimingLabel(t) {
+      const h = parseInt(t.toLocaleTimeString('en-US', {
+        timeZone: 'America/New_York', hour: '2-digit', hour12: false
+      }).split(':')[0]);
+      if (h < 4)  return 'early morning';
+      if (h < 12) return 'morning';
+      if (h < 16) return 'afternoon';
+      return 'night';
+    }
+
+    function getWeatherPhrase(t, now) {
+      const hoursAway = (t - now) / 3600000;
+      const timeStr   = formatWeatherTime(t);
+      const fmtDate   = d => d.toLocaleDateString('en-US', {
+        timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit'
+      });
+      const tHourET = parseInt(t.toLocaleTimeString('en-US', {
+        timeZone: 'America/New_York', hour: '2-digit', hour12: false
+      }).split(':')[0]);
+
+      // P1 — within 3 hours
+      if (hoursAway <= 1) return `within the next hour @ ${timeStr}`;
+      if (hoursAway <= 3) return `in a few hours @ ${timeStr}`;
+
+      const nowDate = fmtDate(now);
+      const tDate   = fmtDate(t);
+      const tmrDate = fmtDate(new Date(now.getTime() + 86400000));
+
+      // P2/P3 — same calendar day
+      if (tDate === nowDate) {
+        return tHourET < 16 ? `today @ ${timeStr}` : `tonight @ ${timeStr}`;
+      }
+      // P4 — tomorrow
+      if (tDate === tmrDate) {
+        return `tomorrow ${getTimingLabel(t)} @ ${timeStr}`;
+      }
+      // P5 — day of week
+      const day = t.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long' }).toLowerCase();
+      return `${day} ${getTimingLabel(t)} @ ${timeStr}`;
+    }
+
     // ── Rain forecast (NWS) ──────────────────────────────────────────────────
     const NWS_POINTS_URL = 'https://api.weather.gov/points/40.6501,-73.9496';
     let nwsHourlyUrl = null;
@@ -400,15 +450,7 @@
         const iconName = resolveIcon(rainPeriod.weather);
         ico.src = ICON_SRCS[iconName] ?? '';
 
-        const timeStr = formatSunTime(t);
-        if (hoursAway >= 48) {
-          const day = t.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long' }).toLowerCase();
-          el.textContent = `${day} @ ${timeStr}`;
-        } else if (hoursAway >= 23) {
-          el.textContent = `tomorrow @ ${timeStr}`;
-        } else {
-          el.textContent = timeStr;
-        }
+        el.textContent = getWeatherPhrase(t, now);
         row.style.display = 'flex';
       } catch (e) { row.style.display = 'none'; }
     }
@@ -679,15 +721,8 @@
       ico.src = ICON_SRCS[iconName] ?? '';
 
       const t = new Date(Date.now() + hoursAway * 3600000);
-      const timeStr = formatSunTime(t);
-      if (hoursAway >= 48) {
-        const day = t.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long' }).toLowerCase();
-        el.textContent = `${day} @ ${timeStr}`;
-      } else if (hoursAway >= 23) {
-        el.textContent = `tomorrow @ ${timeStr}`;
-      } else {
-        el.textContent = timeStr;
-      }
+      const now = new Date();
+      el.textContent = getWeatherPhrase(t, now);
       row.style.display = 'flex';
     }
 
