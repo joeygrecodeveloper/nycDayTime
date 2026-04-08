@@ -649,6 +649,7 @@
       card.querySelector('.card-hours').textContent = String(h);
       card.querySelector('.card-minutes').textContent = m;
       card.querySelector('.card-period').textContent = period;
+      reorderCards();
     }
 
     function updateCardSunTimes(city) {
@@ -715,6 +716,34 @@
       } catch (e) { if (row) row.style.display = 'none'; }
     }
 
+    // ── Card Ordering (time asc, then longitude asc for ties) ───────────────
+
+    function cityTimeMinutes(city) {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: city.timezone,
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: false
+      }).formatToParts(new Date());
+      const h = parseInt(parts.find(p => p.type === 'hour').value, 10);
+      const m = parseInt(parts.find(p => p.type === 'minute').value, 10);
+      return h * 60 + m;
+    }
+
+    function reorderCards() {
+      const container = document.getElementById('cards-container');
+      if (!container || cities.length < 2) return;
+      const sorted = [...cities].sort((a, b) => {
+        const diff = cityTimeMinutes(a) - cityTimeMinutes(b);
+        if (diff !== 0) return diff;
+        return a.lon - b.lon;
+      });
+      sorted.forEach(city => {
+        const card = container.querySelector(`.city-card[data-city-id="${city.id}"]`);
+        if (card) container.appendChild(card);
+      });
+    }
+
     // ── Viewport Visibility ──────────────────────────────────────────────────
 
     const MIN_CARD_WIDTH = 260; // px — minimum column width before hiding lower-priority cards
@@ -768,12 +797,7 @@
           <span class="rain-label card-rain-time"></span>
         </div>`;
 
-      // 3-city rule: 3rd city goes to the left (prepend)
-      if (cities.length === 3) {
-        container.insertBefore(card, container.firstChild);
-      } else {
-        container.appendChild(card);
-      }
+      container.appendChild(card);
       container.dataset.count = cities.length;
     }
 
