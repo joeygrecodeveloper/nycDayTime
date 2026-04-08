@@ -238,6 +238,49 @@
       z-index: 100;
       min-width: 300px;
     }
+    /* ── V2: Add Modal (first-load +) ──────────────────────────────────────── */
+    #add-modal {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      top: calc(100% + 0.6rem);
+      background: #161616;
+      border: 1px solid #2e2e2e;
+      border-radius: 8px;
+      padding: 0.85rem 0.9rem 0.9rem;
+      z-index: 100;
+    }
+    .add-modal-caret {
+      position: absolute;
+      top: -7px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-bottom: 7px solid #2e2e2e;
+    }
+    .add-modal-caret::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: -6px;
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-bottom: 6px solid #161616;
+    }
+    .add-modal-error {
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      color: #e07070;
+      min-height: 0.9rem;
+      margin-top: 0.3rem;
+      text-align: center;
+    }
+
     .modal-caret {
       position: absolute;
       top: -7px;
@@ -454,6 +497,17 @@
   <div id="app-header">
     <button id="add-btn" class="add-btn"><img src="add.png" alt="add city" /></button>
     <img id="globe-icon" src="globe.png" alt="globe" class="globe-icon" style="display:none;" />
+    <div id="add-modal" style="display:none;">
+      <div class="add-modal-caret"></div>
+      <div class="modal-content">
+        <div class="modal-row" data-row="1">
+          <div class="row-num-circle">1</div>
+          <input id="add-modal-search" class="row-search" type="text" placeholder="search" autocomplete="off" />
+          <button id="add-modal-btn" class="row-btn">search</button>
+        </div>
+        <div class="add-modal-error" id="add-modal-error"></div>
+      </div>
+    </div>
     <div id="globe-modal" style="display:none;">
       <div class="modal-caret"></div>
       <div class="modal-content">
@@ -1196,6 +1250,56 @@
       btn.disabled = false;
     }
 
+    function showAddModal() {
+      const modal = document.getElementById('add-modal');
+      modal.style.display = 'block';
+      const input = document.getElementById('add-modal-search');
+      const btn   = document.getElementById('add-modal-btn');
+      const err   = document.getElementById('add-modal-error');
+      input.value = '';
+      input.disabled = false;
+      btn.disabled = false;
+      err.textContent = '';
+      input.focus();
+    }
+
+    function dismissAddModal() {
+      document.getElementById('add-modal').style.display = 'none';
+    }
+
+    function toggleAddModal() {
+      const modal = document.getElementById('add-modal');
+      if (modal.style.display === 'none') showAddModal();
+      else dismissAddModal();
+    }
+
+    async function handleAddModalSubmit() {
+      const input = document.getElementById('add-modal-search');
+      const btn   = document.getElementById('add-modal-btn');
+      const err   = document.getElementById('add-modal-error');
+      const query = input.value.trim();
+      if (!query) return;
+      btn.disabled   = true;
+      input.disabled = true;
+      err.textContent = 'loading...';
+      try {
+        const geo = await geocodeInput(query);
+        const nwsR = await fetch(`https://api.weather.gov/points/${geo.lat.toFixed(4)},${geo.lon.toFixed(4)}`);
+        let timezone = 'America/New_York', nwsHourlyUrl = null;
+        if (nwsR.ok) {
+          const nwsD = await nwsR.json();
+          timezone     = nwsD.properties.timeZone;
+          nwsHourlyUrl = nwsD.properties.forecastHourly;
+        }
+        dismissAddModal();
+        addCity({ id: crypto.randomUUID(), name: geo.name, lat: geo.lat, lon: geo.lon, timezone, nwsHourlyUrl });
+      } catch (e) {
+        err.textContent = 'error';
+        input.disabled  = false;
+        btn.disabled    = false;
+      }
+    }
+
     function showGlobeModal() {
       const modal = document.getElementById('globe-modal');
       modal.style.display = 'block';
@@ -1264,19 +1368,24 @@
       if (!t || typeof t.closest !== 'function') return;
       if (t.id === 'debug-apply') { applyDebugWeather(); return; }
       if (t.id === 'debug-reset') { cities.forEach(c => updateCardRain(c)); return; }
-      if (t.id === 'add-btn' || t.closest('#add-btn')) { showGlobeModal(); return; }
+      if (t.id === 'add-btn' || t.closest('#add-btn')) { toggleAddModal(); return; }
       if (t.id === 'globe-icon' || t.closest('#globe-icon')) { toggleGlobeModal(); return; }
+      if (t.id === 'add-modal-btn') { handleAddModalSubmit(); return; }
       if (t.classList.contains('row-btn')) {
         const modalRow = t.closest('.modal-row');
         if (modalRow) { handleRowBtn(parseInt(modalRow.dataset.row, 10) - 1); return; }
       }
       if (t.classList.contains('card-remove-btn')) { removeCity(t.dataset.cityId); return; }
 
-      // Dismiss modal on outside click
-      const modal = document.getElementById('globe-modal');
-      if (modal.style.display !== 'none' && !modal.contains(t) &&
-          t.id !== 'globe-icon' && !t.closest('#globe-icon') &&
+      // Dismiss modals on outside click
+      const addModal = document.getElementById('add-modal');
+      if (addModal.style.display !== 'none' && !addModal.contains(t) &&
           t.id !== 'add-btn' && !t.closest('#add-btn')) {
+        dismissAddModal();
+      }
+      const globeModal = document.getElementById('globe-modal');
+      if (globeModal.style.display !== 'none' && !globeModal.contains(t) &&
+          t.id !== 'globe-icon' && !t.closest('#globe-icon')) {
         dismissGlobeModal();
       }
     });
@@ -1284,12 +1393,13 @@
     document.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
         const active = document.activeElement;
+        if (active && active.id === 'add-modal-search') { handleAddModalSubmit(); return; }
         if (active && active.classList.contains('row-search')) {
           const modalRow = active.closest('.modal-row');
           if (modalRow) handleRowBtn(parseInt(modalRow.dataset.row, 10) - 1);
         }
       }
-      if (e.key === 'Escape') dismissGlobeModal();
+      if (e.key === 'Escape') { dismissAddModal(); dismissGlobeModal(); }
     });
 
   </script>
