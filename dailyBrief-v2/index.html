@@ -1190,6 +1190,7 @@
         if (cities[i]) {
           input.value    = cities[i].name;
           input.disabled = true;
+          btn.disabled   = false;
           btn.textContent = '×';
           btn.classList.add('remove-btn');
           row.classList.remove('row-disabled');
@@ -1212,7 +1213,8 @@
     }
 
     async function handleRowBtn(rowIndex) {
-      const row   = document.querySelector(`.modal-row[data-row="${rowIndex + 1}"]`);
+      const globeModal = document.getElementById('globe-modal');
+      const row   = globeModal.querySelector(`.modal-row[data-row="${rowIndex + 1}"]`);
       const input = row.querySelector('.row-search');
       const btn   = row.querySelector('.row-btn');
       const err   = row.querySelector('.row-error');
