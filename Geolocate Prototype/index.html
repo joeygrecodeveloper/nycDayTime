@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geolocate Prototype</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 40px;
+      background: #fff;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      max-width: 480px;
+    }
+
+    .circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid #aaa;
+      flex-shrink: 0;
+      margin-right: 8px;
+      background: #fff;
+    }
+
+    #location-input {
+      flex: 1;
+      height: 40px;
+      background: #d9d9d9;
+      border: none;
+      outline: none;
+      padding: 0 12px;
+      font-size: 16px;
+      color: #555;
+      font-family: inherit;
+    }
+
+    #location-input::placeholder {
+      color: #888;
+    }
+
+    #enter-btn {
+      height: 40px;
+      padding: 0 20px;
+      background: #1b5e7b;
+      color: #fff;
+      border: none;
+      font-size: 16px;
+      font-family: inherit;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    #feedback {
+      margin-top: 12px;
+      font-size: 15px;
+      color: #333;
+      min-height: 1.2em;
+      max-width: 480px;
+    }
+
+    #latlon-box {
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: #f0f0f0;
+      border: 1px solid #ccc;
+      font-family: monospace;
+      font-size: 14px;
+      color: #333;
+      max-width: 480px;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="row">
+    <div class="circle"></div>
+    <input type="text" id="location-input" placeholder="search" />
+    <button id="enter-btn">enter</button>
+  </div>
+  <p id="feedback"></p>
+  <div id="latlon-box" hidden></div>
+
+  <script>
+    const STATE_ABBR = {
+      "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR",
+      "California": "CA", "Colorado": "CO", "Connecticut": "CT", "Delaware": "DE",
+      "District of Columbia": "DC", "Florida": "FL", "Georgia": "GA", "Hawaii": "HI",
+      "Idaho": "ID", "Illinois": "IL", "Indiana": "IN", "Iowa": "IA",
+      "Kansas": "KS", "Kentucky": "KY", "Louisiana": "LA", "Maine": "ME",
+      "Maryland": "MD", "Massachusetts": "MA", "Michigan": "MI", "Minnesota": "MN",
+      "Mississippi": "MS", "Missouri": "MO", "Montana": "MT", "Nebraska": "NE",
+      "Nevada": "NV", "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM",
+      "New York": "NY", "North Carolina": "NC", "North Dakota": "ND", "Ohio": "OH",
+      "Oklahoma": "OK", "Oregon": "OR", "Pennsylvania": "PA", "Rhode Island": "RI",
+      "South Carolina": "SC", "South Dakota": "SD", "Tennessee": "TN", "Texas": "TX",
+      "Utah": "UT", "Vermont": "VT", "Virginia": "VA", "Washington": "WA",
+      "West Virginia": "WV", "Wisconsin": "WI", "Wyoming": "WY"
+    };
+
+    const input = document.getElementById('location-input');
+    const btn = document.getElementById('enter-btn');
+    const feedback = document.getElementById('feedback');
+    const latlonBox = document.getElementById('latlon-box');
+
+    btn.addEventListener('click', async () => {
+      const query = input.value.trim();
+      if (!query) return;
+
+      // Clear previous state
+      feedback.textContent = '';
+      latlonBox.hidden = true;
+      latlonBox.textContent = '';
+
+      feedback.textContent = 'loading...';
+
+      try {
+        const url = new URL('https://nominatim.openstreetmap.org/search');
+        url.searchParams.set('q', query);
+        url.searchParams.set('format', 'json');
+        url.searchParams.set('addressdetails', '1');
+        url.searchParams.set('limit', '1');
+        url.searchParams.set('countrycodes', 'us');
+        url.searchParams.set('accept-language', 'en');
+
+        const res = await fetch(url.toString(), {
+          headers: { 'User-Agent': 'GeolocatePrototype/1.0' }
+        });
+
+        if (!res.ok) throw new Error('fetch failed');
+
+        const data = await res.json();
+
+        if (!Array.isArray(data) || data.length === 0) {
+          feedback.textContent = 'error';
+          return;
+        }
+
+        const result = data[0];
+        const addr = result.address;
+
+        const city = addr.city ?? addr.town ?? addr.village ?? addr.municipality ?? addr.suburb;
+        const stateAbbr = STATE_ABBR[addr.state];
+
+        if (!city || !stateAbbr) {
+          feedback.textContent = 'error';
+          return;
+        }
+
+        const label = `${city}, ${stateAbbr}`;
+        input.value = label;
+        feedback.textContent = label;
+
+        const lat = parseFloat(result.lat).toFixed(4);
+        const lon = parseFloat(result.lon).toFixed(4);
+        latlonBox.textContent = `${lat},${lon}`;
+        latlonBox.hidden = false;
+
+      } catch {
+        feedback.textContent = 'error';
+      }
+    });
+  </script>
+
+</body>
+</html>
