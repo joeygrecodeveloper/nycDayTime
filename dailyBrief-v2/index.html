@@ -226,49 +226,123 @@
       opacity: 0.45;
     }
 
-    /* ── V2: Location Input Overlay ─────────────────────────────────────────── */
-    #location-input-overlay {
+    /* ── V2: Globe Modal ────────────────────────────────────────────────────── */
+    #globe-modal {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 0.6rem);
+      background: #161616;
+      border: 1px solid #2e2e2e;
+      border-radius: 8px;
+      padding: 0.85rem 0.9rem 0.9rem;
+      z-index: 100;
+      min-width: 300px;
+    }
+    .modal-caret {
+      position: absolute;
+      top: -7px;
+      right: 0.45rem;
+      width: 0;
+      height: 0;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-bottom: 7px solid #2e2e2e;
+    }
+    .modal-caret::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: -6px;
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-bottom: 6px solid #161616;
+    }
+    .modal-content {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 0.35rem;
+      gap: 0.65rem;
     }
-    .location-input-row {
+    .modal-row {
       display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      position: relative;
     }
-    #city-search {
-      width: 230px;
-      height: 32px;
+    .modal-row + .modal-row { padding-top: 0.15rem; }
+    .row-num-circle {
+      width: 1.4rem;
+      height: 1.4rem;
+      border-radius: 50%;
+      background: #2a2a2a;
+      border: 1px solid #3a3a3a;
+      color: #666;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 400;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    .row-search {
+      width: 175px;
+      height: 28px;
       background: #d9d9d9;
       border: none;
-      border-radius: 4px 0 0 4px;
+      border-radius: 4px;
       font-family: 'Inter', sans-serif;
       font-weight: 400;
       font-size: 12px;
-      padding: 0 10px;
-      color: #333;
+      padding: 0 8px;
+      color: #222;
       outline: none;
+      flex-shrink: 0;
     }
-    #city-search::placeholder { color: #565656bf; }
-    #city-enter-btn {
-      width: 64px;
-      height: 32px;
+    .row-search::placeholder { color: #56565699; }
+    .row-search:disabled {
+      background: #999;
+      color: #555;
+      cursor: default;
+    }
+    .row-btn {
+      height: 28px;
+      min-width: 52px;
       background: #005f91;
       border: none;
-      border-radius: 0 4px 4px 0;
+      border-radius: 4px;
       font-family: 'Inter', sans-serif;
       font-weight: 400;
       font-size: 12px;
-      color: #ffffff;
+      color: #fff;
       cursor: pointer;
+      flex-shrink: 0;
     }
-    #city-enter-btn:hover { background: #0073b1; }
-    #location-feedback {
+    .row-btn:hover { background: #0073b1; }
+    .row-btn.remove-btn {
+      background: #3a3a3a;
+      font-size: 1rem;
+      line-height: 1;
+    }
+    .row-btn.remove-btn:hover { background: #555; }
+    .row-error {
+      position: absolute;
+      bottom: -1rem;
+      left: 1.9rem;
       font-family: 'Inter', sans-serif;
-      font-weight: 400;
-      font-size: 12px;
-      color: #888;
-      min-height: 1rem;
+      font-size: 11px;
+      color: #e07070;
+      white-space: nowrap;
+    }
+    .modal-row.row-disabled {
+      opacity: 0.3;
+      pointer-events: none;
+    }
+    @media (max-width: 600px) {
+      .modal-row[data-row="2"],
+      .modal-row[data-row="3"] { display: none; }
     }
 
     /* ── V2: Cards Container ────────────────────────────────────────────────── */
@@ -380,14 +454,29 @@
   <div id="app-header">
     <button id="add-btn" class="add-btn"><img src="add.png" alt="add city" /></button>
     <img id="globe-icon" src="globe.png" alt="globe" class="globe-icon" style="display:none;" />
-  </div>
-
-  <div id="location-input-overlay" style="display:none;">
-    <div class="location-input-row">
-      <input id="city-search" type="text" placeholder="search" autocomplete="off" />
-      <button id="city-enter-btn">enter</button>
+    <div id="globe-modal" style="display:none;">
+      <div class="modal-caret"></div>
+      <div class="modal-content">
+        <div class="modal-row" data-row="1">
+          <div class="row-num-circle">1</div>
+          <input class="row-search" type="text" placeholder="search" autocomplete="off" />
+          <button class="row-btn">search</button>
+          <div class="row-error"></div>
+        </div>
+        <div class="modal-row row-disabled" data-row="2">
+          <div class="row-num-circle">2</div>
+          <input class="row-search" type="text" placeholder="search" autocomplete="off" disabled />
+          <button class="row-btn">search</button>
+          <div class="row-error"></div>
+        </div>
+        <div class="modal-row row-disabled" data-row="3">
+          <div class="row-num-circle">3</div>
+          <input class="row-search" type="text" placeholder="search" autocomplete="off" disabled />
+          <button class="row-btn">search</button>
+          <div class="row-error"></div>
+        </div>
+      </div>
     </div>
-    <div id="location-feedback"></div>
   </div>
 
   <div id="cards-container"></div>
@@ -1013,39 +1102,93 @@
       };
     }
 
-    async function handleLocationSubmit() {
-      if (cities.length >= 3) return;
-      const query = document.getElementById('city-search').value.trim();
-      if (!query) return;
-      const fb = document.getElementById('location-feedback');
-      fb.textContent = 'loading...';
-      try {
-        const geo = await geocodeInput(query);
-        const r = await fetch(`https://api.weather.gov/points/${geo.lat.toFixed(4)},${geo.lon.toFixed(4)}`);
-        if (!r.ok) throw new Error('nws error');
-        const d = await r.json();
-        const timezone    = d.properties.timeZone;
-        const nwsHourlyUrl = d.properties.forecastHourly;
-        dismissLocationInput();
-        addCity({ id: crypto.randomUUID(), name: geo.name, lat: geo.lat, lon: geo.lon, timezone, nwsHourlyUrl });
-      } catch (e) {
-        fb.textContent = 'error';
+    function refreshModalRows() {
+      for (let i = 0; i < 3; i++) {
+        const row   = document.querySelector(`.modal-row[data-row="${i + 1}"]`);
+        const input = row.querySelector('.row-search');
+        const btn   = row.querySelector('.row-btn');
+        const err   = row.querySelector('.row-error');
+        err.textContent = '';
+
+        if (cities[i]) {
+          input.value    = cities[i].name;
+          input.disabled = true;
+          btn.textContent = '×';
+          btn.classList.add('remove-btn');
+          row.classList.remove('row-disabled');
+        } else if (i === 0 || cities[i - 1]) {
+          // Empty slot but enabled (previous filled, or row 1)
+          input.value    = '';
+          input.disabled = false;
+          btn.textContent = 'search';
+          btn.classList.remove('remove-btn');
+          row.classList.remove('row-disabled');
+        } else {
+          // Disabled — no preceding city
+          input.value    = '';
+          input.disabled = true;
+          btn.textContent = 'search';
+          btn.classList.remove('remove-btn');
+          row.classList.add('row-disabled');
+        }
       }
     }
 
-    function showLocationInput() {
-      const overlay = document.getElementById('location-input-overlay');
-      overlay.style.display = 'flex';
-      document.getElementById('city-search').value = '';
-      document.getElementById('location-feedback').textContent = '';
-      document.getElementById('city-search').focus();
+    async function handleRowBtn(rowIndex) {
+      const row   = document.querySelector(`.modal-row[data-row="${rowIndex + 1}"]`);
+      const input = row.querySelector('.row-search');
+      const btn   = row.querySelector('.row-btn');
+      const err   = row.querySelector('.row-error');
+
+      if (btn.classList.contains('remove-btn')) {
+        removeCity(cities[rowIndex].id);
+        refreshModalRows();
+        if (cities.length === 0) dismissGlobeModal();
+        return;
+      }
+
+      const query = input.value.trim();
+      if (!query) return;
+
+      btn.disabled   = true;
+      input.disabled = true;
+      err.textContent = 'loading...';
+      try {
+        const geo = await geocodeInput(query);
+        const nwsR = await fetch(`https://api.weather.gov/points/${geo.lat.toFixed(4)},${geo.lon.toFixed(4)}`);
+        let timezone = 'America/New_York', nwsHourlyUrl = null;
+        if (nwsR.ok) {
+          const nwsD = await nwsR.json();
+          timezone     = nwsD.properties.timeZone;
+          nwsHourlyUrl = nwsD.properties.forecastHourly;
+        }
+        err.textContent = '';
+        addCity({ id: crypto.randomUUID(), name: geo.name, lat: geo.lat, lon: geo.lon, timezone, nwsHourlyUrl });
+        refreshModalRows();
+      } catch (e) {
+        err.textContent = 'error';
+        input.disabled  = false;
+      }
+      btn.disabled = false;
     }
 
-    function dismissLocationInput() {
-      const overlay = document.getElementById('location-input-overlay');
-      overlay.style.display = 'none';
-      document.getElementById('city-search').value = '';
-      document.getElementById('location-feedback').textContent = '';
+    function showGlobeModal() {
+      const modal = document.getElementById('globe-modal');
+      modal.style.display = 'block';
+      refreshModalRows();
+      // Focus first empty input
+      const emptyInput = modal.querySelector('.row-search:not([disabled])');
+      if (emptyInput) emptyInput.focus();
+    }
+
+    function dismissGlobeModal() {
+      document.getElementById('globe-modal').style.display = 'none';
+    }
+
+    function toggleGlobeModal() {
+      const modal = document.getElementById('globe-modal');
+      if (modal.style.display === 'none') showGlobeModal();
+      else dismissGlobeModal();
     }
 
     // ── Init ─────────────────────────────────────────────────────────────────
@@ -1097,20 +1240,32 @@
       if (!t || typeof t.closest !== 'function') return;
       if (t.id === 'debug-apply') { applyDebugWeather(); return; }
       if (t.id === 'debug-reset') { cities.forEach(c => updateCardRain(c)); return; }
-      if (t.id === 'add-btn' || t.closest('#add-btn')) { showLocationInput(); return; }
-      if (t.id === 'city-enter-btn') { handleLocationSubmit(); return; }
+      if (t.id === 'add-btn' || t.closest('#add-btn')) { showGlobeModal(); return; }
+      if (t.id === 'globe-icon' || t.closest('#globe-icon')) { toggleGlobeModal(); return; }
+      if (t.classList.contains('row-btn')) {
+        const modalRow = t.closest('.modal-row');
+        if (modalRow) { handleRowBtn(parseInt(modalRow.dataset.row, 10) - 1); return; }
+      }
       if (t.classList.contains('card-remove-btn')) { removeCity(t.dataset.cityId); return; }
 
-      // Dismiss input overlay on outside click
-      const overlay = document.getElementById('location-input-overlay');
-      if (overlay.style.display !== 'none' && !overlay.contains(t)) {
-        dismissLocationInput();
+      // Dismiss modal on outside click
+      const modal = document.getElementById('globe-modal');
+      if (modal.style.display !== 'none' && !modal.contains(t) &&
+          t.id !== 'globe-icon' && !t.closest('#globe-icon') &&
+          t.id !== 'add-btn' && !t.closest('#add-btn')) {
+        dismissGlobeModal();
       }
     });
 
     document.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && document.activeElement.id === 'city-search') handleLocationSubmit();
-      if (e.key === 'Escape') dismissLocationInput();
+      if (e.key === 'Enter') {
+        const active = document.activeElement;
+        if (active && active.classList.contains('row-search')) {
+          const modalRow = active.closest('.modal-row');
+          if (modalRow) handleRowBtn(parseInt(modalRow.dataset.row, 10) - 1);
+        }
+      }
+      if (e.key === 'Escape') dismissGlobeModal();
     });
 
   </script>
