@@ -276,7 +276,6 @@
       font-family: 'Inter', sans-serif;
       font-size: 11px;
       color: #e07070;
-      min-height: 0.9rem;
       margin-top: 0.3rem;
       text-align: center;
     }
@@ -505,7 +504,7 @@
           <input id="add-modal-search" class="row-search" type="text" placeholder="search" autocomplete="off" />
           <button id="add-modal-btn" class="row-btn">search</button>
         </div>
-        <div class="add-modal-error" id="add-modal-error"></div>
+        <div class="add-modal-error" id="add-modal-error" style="display:none;"></div>
       </div>
     </div>
     <div id="globe-modal" style="display:none;">
@@ -1231,6 +1230,7 @@
       btn.disabled   = true;
       input.disabled = true;
       err.textContent = 'loading...';
+      err.style.display = 'block';
       try {
         const geo = await geocodeInput(query);
         const nwsR = await fetch(`https://api.weather.gov/points/${geo.lat.toFixed(4)},${geo.lon.toFixed(4)}`);
@@ -1260,6 +1260,7 @@
       input.disabled = false;
       btn.disabled = false;
       err.textContent = '';
+      err.style.display = 'none';
       input.focus();
     }
 
@@ -1291,10 +1292,12 @@
           timezone     = nwsD.properties.timeZone;
           nwsHourlyUrl = nwsD.properties.forecastHourly;
         }
+        err.style.display = 'none';
         dismissAddModal();
         addCity({ id: crypto.randomUUID(), name: geo.name, lat: geo.lat, lon: geo.lon, timezone, nwsHourlyUrl });
       } catch (e) {
         err.textContent = 'error';
+        err.style.display = 'block';
         input.disabled  = false;
         btn.disabled    = false;
       }
