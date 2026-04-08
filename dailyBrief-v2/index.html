@@ -7,7 +7,7 @@
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;600&display=swap" rel="stylesheet">
   <style>
     * {
       margin: 0;
@@ -45,7 +45,7 @@
       justify-content: center;
       color: #f0f0f0;
       font-size: clamp(3.5rem, 10vw, 8rem);
-      font-weight: 600;
+      font-weight: 300;
       font-family: 'Inter', sans-serif;
       letter-spacing: -0.02em;
       transform: scaleX(0.82);
@@ -292,29 +292,24 @@
     /* ── V2: City Card ──────────────────────────────────────────────────────── */
     .city-card {
       position: relative;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 8px;
-      padding: 1.25rem 1rem 1rem;
       display: flex;
       flex-direction: column;
       align-items: center;
-      text-align: center;
-      gap: 0.4rem;
     }
     .card-city-name {
       color: #555;
-      font-size: 0.85rem;
+      font-size: 1rem;
       letter-spacing: 0.3em;
       text-transform: uppercase;
+      margin-bottom: 1rem;
     }
     .card-time {
       display: flex;
       align-items: center;
       justify-content: center;
       color: #f0f0f0;
-      font-size: clamp(2rem, 6vw, 4.5rem);
-      font-weight: 600;
+      font-size: clamp(3.5rem, 10vw, 8rem);
+      font-weight: 300;
       font-family: 'Inter', sans-serif;
       letter-spacing: -0.02em;
       transform: scaleX(0.82);
@@ -332,10 +327,23 @@
       font-size: 0.22em;
       margin-left: 0.1em;
     }
+    .card-sun-times {
+      display: flex;
+      justify-content: center;
+      gap: 3rem;
+      margin-top: 1rem;
+    }
+    .card-rain-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      margin-top: 0.6rem;
+    }
     .card-remove-btn {
       position: absolute;
-      top: 0.4rem;
-      right: 0.5rem;
+      top: 0;
+      right: 0;
       background: none;
       border: none;
       color: #333;
@@ -633,7 +641,7 @@
         </div>
         <div class="card-sun-times">
           <div class="sun-item">
-            <img src="sunrise.png" class="sun-icon" style="width:1.5rem;height:1.5rem;" alt="sunrise">
+            <img src="sunrise3.png" class="sun-icon" style="width:1.5rem;height:1.5rem;" alt="sunrise">
             <div class="sun-label card-sunrise-time">--:-- --</div>
           </div>
           <div class="sun-item">
@@ -1055,23 +1063,24 @@
     }
 
     document.addEventListener('click', e => {
-      if (e.target.id === 'debug-apply') applyDebugWeather();
-      if (e.target.id === 'debug-reset') cities.forEach(c => updateCardRain(c));
-      if (e.target.id === 'add-btn' || e.target.closest('#add-btn')) showLocationInput();
-      if (e.target.id === 'city-enter-btn') handleLocationSubmit();
-      if (e.target.classList.contains('card-remove-btn')) removeCity(e.target.dataset.cityId);
+      const t = e.target;
+      if (!t || typeof t.closest !== 'function') return;
+      if (t.id === 'debug-apply') { applyDebugWeather(); return; }
+      if (t.id === 'debug-reset') { cities.forEach(c => updateCardRain(c)); return; }
+      if (t.id === 'add-btn' || t.closest('#add-btn')) { showLocationInput(); return; }
+      if (t.id === 'city-enter-btn') { handleLocationSubmit(); return; }
+      if (t.classList.contains('card-remove-btn')) { removeCity(t.dataset.cityId); return; }
+
+      // Dismiss input overlay on outside click
+      const overlay = document.getElementById('location-input-overlay');
+      if (overlay.style.display !== 'none' && !overlay.contains(t)) {
+        dismissLocationInput();
+      }
     });
 
     document.addEventListener('keydown', e => {
       if (e.key === 'Enter' && document.activeElement.id === 'city-search') handleLocationSubmit();
       if (e.key === 'Escape') dismissLocationInput();
-    });
-
-    document.addEventListener('click', e => {
-      const overlay = document.getElementById('location-input-overlay');
-      if (overlay.style.display !== 'none' && !overlay.contains(e.target) && e.target.id !== 'add-btn' && !e.target.closest('#add-btn')) {
-        dismissLocationInput();
-      }
     });
 
   </script>
