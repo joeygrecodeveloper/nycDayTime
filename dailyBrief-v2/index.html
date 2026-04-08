@@ -626,6 +626,31 @@
       } catch (e) { if (row) row.style.display = 'none'; }
     }
 
+    // ── Viewport Visibility ──────────────────────────────────────────────────
+
+    const MIN_CARD_WIDTH = 260; // px — minimum column width before hiding lower-priority cards
+    const CARD_GAP = 24;        // px — matches 1.5rem gap at 16px base
+
+    function getVisibleCount() {
+      const container = document.getElementById('cards-container');
+      if (!container || !cities.length) return 0;
+      const w = container.getBoundingClientRect().width || window.innerWidth;
+      const fits = Math.floor((w + CARD_GAP) / (MIN_CARD_WIDTH + CARD_GAP));
+      return Math.max(1, Math.min(cities.length, fits));
+    }
+
+    function updateVisibility() {
+      const visible = getVisibleCount();
+      cities.forEach((city, i) => {
+        const card = document.querySelector(`.city-card[data-city-id="${city.id}"]`);
+        if (!card) return;
+        card.style.display = (i < visible) ? '' : 'none';
+      });
+      const container = document.getElementById('cards-container');
+      const shown = Math.min(visible, cities.length);
+      if (shown > 0) container.dataset.count = shown;
+    }
+
     // ── City Lifecycle ────────────────────────────────────────────────────────
 
     function createCityCard(city) {
@@ -697,6 +722,7 @@
         document.getElementById('add-btn').style.display = 'none';
         document.getElementById('globe-icon').style.display = 'block';
       }
+      updateVisibility();
       persistCities();
     }
 
@@ -715,6 +741,7 @@
         document.getElementById('add-btn').style.display = '';
         document.getElementById('globe-icon').style.display = 'none';
       }
+      updateVisibility();
       persistCities();
     }
 
@@ -1023,6 +1050,9 @@
 
     // ── Init ─────────────────────────────────────────────────────────────────
     loadCitiesFromStorage();
+    updateVisibility();
+    new ResizeObserver(() => updateVisibility())
+      .observe(document.getElementById('cards-container'));
 
     // ── Debug panel ───────────────────────────────────────────────────────────────────────────
     document.addEventListener('keydown', e => {
