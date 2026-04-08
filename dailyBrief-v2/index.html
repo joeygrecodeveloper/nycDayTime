@@ -1180,8 +1180,9 @@
     }
 
     function refreshModalRows() {
+      const globeModal = document.getElementById('globe-modal');
       for (let i = 0; i < 3; i++) {
-        const row   = document.querySelector(`.modal-row[data-row="${i + 1}"]`);
+        const row   = globeModal.querySelector(`.modal-row[data-row="${i + 1}"]`);
         const input = row.querySelector('.row-search');
         const btn   = row.querySelector('.row-btn');
         const err   = row.querySelector('.row-error');
